@@ -12,18 +12,24 @@ import threading
 host_name = '192.168.178.40'  # IP Address of Raspberry Pi
 host_port = 8000
 
-# We will be using the BCM GPIO numbering
-GPIO.setmode(GPIO.BCM)
+GPIO.setmode(GPIO.BCM) # We will be using the BCM GPIO numbering
+GPIO_CONTROL = 17 # Select a control GPIO
+GPIO.setup(GPIO_CONTROL, GPIO.OUT)  # Set CONTROL to OUTPUT mode
 
-# Select a control GPIO
-GPIO_CONTROL = 17
+Endzeit=0
+Restzeit=0
 
-# Set CONTROL to OUTPUT mode
-GPIO.setup(GPIO_CONTROL, GPIO.OUT)
+
 
 def rest():
-    print('Some magic')
+    global Endzeit, Restzeit 
+    #print('Some magic')
+    Restzeit=Endzeit-time.time()
+    print (Endzeit, "  --  ",Restzeit)
+    if Restzeit<0:
+        GPIO.output(17, GPIO.HIGH) #Pumpe deaktivieren
     threading.Timer(10, rest).start()
+    
 
 def setupGPIO():
     GPIO.setmode(GPIO.BCM)
@@ -51,43 +57,46 @@ class MyServer(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        global Restzeit
         html = '''
            <html>
             <head>
-                <style>
-                    input {{padding:20px;}}
-                </style>
                 <title>Warmwasser</title>
+                <meta http-equiv="refresh" content="10" />
                 <meta charset="UTF-8">
             </head>
            <body 
             style="width:960px; margin: 20px auto;font-size:160%">
            <h1>Warmwassersteuerung</h1>
-           <p>Current GPU temperature is {} Dauer:{} </p>
+           <p>Current GPU temperature is {} Restzeit:{} </p>
            <form action="/" method="POST">
-               <input type="submit" name="submit" value="15min_EIN" style="padding:20px">
-               <input type="submit" name="submit" value="30min_EIN">
-               <input type="submit" name="submit" value="AUS">
+               <input type="submit" name="submit" value="1min_EIN" style="padding:20px">
+               <input type="submit" name="submit" value="30min_EIN" style="padding:20px">
+               <input type="submit" name="submit" value="AUS" style="padding:20px">
            </form>
            </body>
            </html>
         '''
         temp = getTemperature()
         self.do_HEAD()
-        self.wfile.write(html.format(temp[5:],dauer).encode("utf-8"))
+        #self.wfile.write(html.format(temp[5:],Restzeit).encode("utf-8"))
+        self.wfile.write(html.format(time.time,Restzeit).encode("utf-8"))
 
     def do_POST(self):
-
+        global Endzeit
         content_length = int(self.headers['Content-Length'])
         post_data = self.rfile.read(content_length).decode("utf-8")
         post_data = post_data.split("=")[1]
 
         setupGPIO()
 
-        if post_data == '15min_EIN':
-            GPIO.output(17, GPIO.LOW)
-        else:
-            GPIO.output(17, GPIO.HIGH)
+        if post_data == '1min_EIN':
+            GPIO.output(17, GPIO.LOW) #Pumpe aktivieren
+            startzeit = time.time()
+            dauer=60
+            Endzeit=startzeit + dauer
+        if post_data == 'AUS':
+            GPIO.output(17, GPIO.HIGH) #Pumpe deaktivieren
 
         print("LED is {}".format(post_data))
         self._redirect('/')  # Redirect back to the root url
@@ -95,7 +104,10 @@ class MyServer(BaseHTTPRequestHandler):
 
 def main():
     global dauer
+    dauer=0
     rest()
+
+    """
     dauer=20 #Dauer der Warmwasserbereitstellung
     spanne=5 #alle x s wird eine Meldung über verbleibende Zeit
     print('Ist EIN -',time.asctime())    
@@ -109,6 +121,7 @@ def main():
     print('Ist AUS -',time.asctime())      
     GPIO.cleanup()
     dauer=17
+    """
 
 # # # # # Main # # # # #
 
