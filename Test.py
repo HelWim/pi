@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# coding=utf-8
 
 
 #Ausgehend von web3 - ändern bis das Refreg nicht mehr geht
@@ -70,12 +71,12 @@ class MyServer(BaseHTTPRequestHandler):
            <body 
             style="width:960px; margin: 20px auto;font-size:160%">
            <h1>Warmwassersteuerung</h1>
-           <p>Current GPU temperature is {} Restzeit:{}</p>
+           <p>Current GPU temperature is {} <br />Restzeit:{}</p>
            <form action="/" method="POST">
                Dauer :
-               <input type="submit" name="submit" value="1min_EIN" style="padding:20px">
-               <input type="submit" name="submit" value="30min_EIN" style="padding:20px">
-               <input type="submit" name="submit" value="AUS" style="padding:20px">
+               <input type="submit" name="submit" value="1min_EIN" style="padding:20px;font-size:160%">
+               <input type="submit" name="submit" value="30min_EIN" style="padding:20px;font-size:160%">
+               <input type="submit" name="submit" value="AUS" style="padding:20px;font-size:160%">
            </form>
            </body>
            </html>
@@ -98,9 +99,10 @@ class MyServer(BaseHTTPRequestHandler):
             startzeit = time.time()
             dauer=60
             Endzeit=startzeit + dauer
+            rest()
         if post_data == 'AUS':
             GPIO.output(17, GPIO.HIGH) #Pumpe deaktivieren
-
+            Endzeit=time.time() #Restzeit auf 0 setzen
         print("LED is {}".format(post_data))
         self._redirect('/')  # Redirect back to the root url
 
@@ -108,20 +110,7 @@ class MyServer(BaseHTTPRequestHandler):
 def main():
     print("Hauptprogramm")
     rest()
-    """
-    dauer=5 #Dauer der Warmwasserbereitstellung
-    spanne=5 #alle x s wird eine Meldung über verbleibende Zeit
-    print('Ist EIN -',time.asctime())    
-    GPIO.output(GPIO_CONTROL, False)
-    while dauer>0:
-        # das soll aufs Handy geschrieben werden
-        print('noch',dauer,'s.')
-        time.sleep(spanne)
-        dauer=dauer-spanne
-    GPIO.output(GPIO_CONTROL, True)
-    print('Ist AUS -',time.asctime())      
-    GPIO.cleanup()
-    """
+
 
 # # # # # Main # # # # #
 
