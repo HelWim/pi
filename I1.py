@@ -22,7 +22,8 @@ try: # Main program loop
             zustand='EIN'
         else:
             zustand='AUS'
-        print (strom, " --- ","Mittel=%6.0f" % mittel,"- Max= %6.0f" % max(strom), "- Pumpe ist ", zustand)
+        print (strom, "-","Av=%6.0f" % mittel,"- Min=%6.0f" % min(strom),
+        "- Max=%6.0f" % max(strom), "- D=%6.0f" % (max(strom)-min(strom)), "-",zustand)
        # print("%6.0f" % mittel,"Max= %6.0f" % max(durch) )
        # print("Max= %6.0f" % max(durch))
         time.sleep(0.5)

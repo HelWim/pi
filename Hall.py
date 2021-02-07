@@ -23,7 +23,7 @@ GPIO.setup(GPIO_HALL_MINI, GPIO.IN)
 
 
 adc = Adafruit_ADS1x15.ADS1115() # Create an ADS1115 ADC (16-bit) instance
-GAIN = 1
+GAIN = 2/3
 
 
 print('[press ctrl+c to end the script]') 

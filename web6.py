@@ -20,16 +20,16 @@ Endzeit=0
 Restzeit=0
 
 
-
+"""
 def rest():
     global Endzeit, Restzeit 
     #print('Some magic')
     Restzeit=Endzeit-time.time()
-    print (Endzeit, "  --  ",Restzeit)
+    print (Restzeit)
     if Restzeit<0:
         GPIO.output(17, GPIO.HIGH) #Pumpe deaktivieren
     threading.Timer(10, rest).start()
-    
+"""    
 
 def setupGPIO():
     GPIO.setmode(GPIO.BCM)
@@ -57,19 +57,19 @@ class MyServer(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        global Restzeit
+        #global Restzeit
         html = '''
            <html>
             <head>
                 <title>Warmwasser</title>
-                <meta http-equiv="refresh" content="10" />
-                <meta charset="UTF-8">
+                <meta http-equiv="refresh" content="3">  
             </head>
            <body 
             style="width:960px; margin: 20px auto;font-size:160%">
            <h1>Warmwassersteuerung</h1>
            <p>Current GPU temperature is {} Restzeit:{} </p>
            <form action="/" method="POST">
+               Dauer: 
                <input type="submit" name="submit" value="1min_EIN" style="padding:20px">
                <input type="submit" name="submit" value="30min_EIN" style="padding:20px">
                <input type="submit" name="submit" value="AUS" style="padding:20px">
@@ -79,8 +79,7 @@ class MyServer(BaseHTTPRequestHandler):
         '''
         temp = getTemperature()
         self.do_HEAD()
-        #self.wfile.write(html.format(temp[5:],Restzeit).encode("utf-8"))
-        self.wfile.write(html.format(time.time,Restzeit).encode("utf-8"))
+        self.wfile.write(html.format(temp[5:],Restzeit).encode("utf-8"))
 
     def do_POST(self):
         global Endzeit
@@ -103,10 +102,10 @@ class MyServer(BaseHTTPRequestHandler):
 
 
 def main():
-    global dauer
-    dauer=0
-    rest()
-
+   # global dauer
+   # dauer=0
+   # rest()
+    print("Hauptprogramm")
     """
     dauer=20 #Dauer der Warmwasserbereitstellung
     spanne=5 #alle x s wird eine Meldung über verbleibende Zeit
