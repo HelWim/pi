@@ -1,0 +1,7 @@
+.cache
+.vscode-server
+.config
+.gnupng
+.wget-hsts
+__pycache__
+*.out
