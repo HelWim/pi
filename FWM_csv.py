@@ -73,32 +73,36 @@ def rest():
 #    print ("n vorher",n)
  #   print ("a vorher",a)
 
-    n[0]=str(round(devices.tempC(1),1))
-    n[1]=str(round(devices.tempC(2),1))
-    n[2]=str(round(devices.tempC(0),1))
-    n[3]=str(round(devices.tempC(3),1))
+    n[0]=(round(devices.tempC(1),1))
+    n[1]=(round(devices.tempC(2),1))
+    n[2]=(round(devices.tempC(0),1))
+    n[3]=(round(devices.tempC(3),1))
+    """
     n[0]=str(time.time())
     print(n)
     print(a)
     n[0]=str(time.time())
     print(n)
     print(a)
+    """
+
+    Zeile[0]=Klartext[1] + str(n[0])+'°C'
+    Zeile[1]=Klartext[2] + str(n[1])+'°C --- '+Klartext[0] + str(n[2])+'°C'
+    Zeile[2]=Klartext[3] + str(n[3])+'°C'
 
 
-    Zeile[0]=Klartext[1] + n[0]+'°C'
-    Zeile[1]=Klartext[2] + n[1]+'°C --- '+Klartext[0] + n[2]+'°C'
-    Zeile[2]=Klartext[3] + n[3]+'°C'
-
-
-  #  print("n nachher",n)
-   # print("a nachher",a)
+    print("n nachher",n)
+    print("a nachher",a)
     
-    if a==n:
-        print("gleich")
-    else:
-        print("unterschied")
-        a=n
-    print("----")
+    for x in range(4):
+
+        if a==n:
+            print("gleich")
+        else:
+            print("unterschied")
+            a=list(n)
+        
+        print("----",x)
 
     file = open('FWM_Test.csv', 'a')   # chm ein File pro Tag
     writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
