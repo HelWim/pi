@@ -58,6 +58,7 @@ def rest():
     if Restzeit==0:
         GPIO.output(GPIO_CONTROL, GPIO.HIGH) #Pumpe deaktivieren
     
+    # Stromsensor
     strom=[1,2,3]
     z=0
     GAIN=1
@@ -70,6 +71,11 @@ def rest():
         Pumpe_Status='EIN'
     else:
         Pumpe_Status='AUS'
+
+    #Drucksensor
+
+
+    
 #    print ("n vorher",n)
  #   print ("a vorher",a)
 
@@ -104,10 +110,13 @@ def rest():
         
         print("----",x)
 
-    file = open('FWM_Test.csv', 'a')   # chm ein File pro Tag
+    file = open('FWM_Test.csv', 'a')  
     writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     writer.writerow([datetime.date.today(),datetime.datetime.now().strftime("%H:%M:%S"),
-        round(devices.tempC(0),1),round(devices.tempC(1),1)])
+        n[0],n[1],n[2],n[3]])
+       # n])  #chm wie einfach die ganze n Variable hineinschreiben
+
+       # round(devices.tempC(0),1),round(devices.tempC(1),1)])
 
     file.close()   # chm immer sofort wieder schließen
 

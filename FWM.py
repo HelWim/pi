@@ -10,6 +10,7 @@ import time, datetime
 import Adafruit_ADS1x15
 import math
 from DS18B20classFile import DS18B20
+import csv
 
 adc = Adafruit_ADS1x15.ADS1115() # Create an ADS1115 ADC (16-bit) instance
 
@@ -29,10 +30,10 @@ names = devices.device_names()
 
 
 Klartext='P-kalt ','Warmwasser ','P-heiss ','Raumtemp ' # Bezeichnung der Tempsensoren
-Zeile=['aa','bb','cc']
+Zeile=['aa','bb','cc','dd']
 Restzeit=21
 Endzeit=22
-Alarmtext="ok" #wenn Flow switch hängt chm 'oder ""
+Alarmtext="ok" #wenn Flow switch hängt
 
 def setupGPIO():
     GPIO.setmode(GPIO.BCM)
@@ -53,25 +54,31 @@ def rest():
     Restzeit=math.trunc(Endzeit-time.time())  #chm '%6.2f' %  Kommastellen abschneiden, Zeitformat
     if Restzeit<0:
         Restzeit=0
-    #format = "%M:%S"  #chm
-    #test=Restzeit(format)
-    #print(test)
-    #print (Restzeit)
     if Restzeit==0:
         GPIO.output(GPIO_CONTROL, GPIO.HIGH) #Pumpe deaktivieren
     
+    #Stromsensor
     strom=[1,2,3]
     z=0
     GAIN=1
     while z<=2:
         strom[z] = adc.read_adc(0, gain=GAIN) # Read the ADC channel 0 value
         z=z+1
-    #print(strom)
     grenze=50 # Grenzwert des Rauschens bei dem die Pumpe EIN ist
     if max(strom)-min(strom)>grenze:
         Pumpe_Status='EIN'
     else:
         Pumpe_Status='AUS'
+
+    #Drucksensor
+    values=[1,2,3]
+    z=0
+    while z<=2:
+        values[z] = adc.read_adc(1, gain=GAIN) # Read the ADC channel 1 value
+        z=z+1
+        mittel=sum(values)/len(values)
+        druck=(mittel-3936)/(26608-3936)*4
+
 
     #P-Kalt > Warmwasser, nur das erste Event speichern  chm Unterschied ' und ""
     if Pumpe_Status=='EIN' and devices.tempC(0) > devices.tempC(1) and Alarmtext=="ok":
@@ -83,9 +90,24 @@ def rest():
             print('delay',datetime.datetime.now())
             delay_endzeit=0
 
-    Zeile[0]=Klartext[1] + str(round(devices.tempC(1),1))+'°C'
-    Zeile[1]=Klartext[2] + str(round(devices.tempC(2),1))+'°C --- '+Klartext[0] + str(round(devices.tempC(0),1))+'°C'
-    Zeile[2]=Klartext[3] + str(round(devices.tempC(3),1))+'°C'
+    n=[1,2,3,4,5]  # neue Werte für csv File
+    n[0]=(round(devices.tempC(1),1))
+    n[1]=(round(devices.tempC(2),1))
+    n[2]=(round(devices.tempC(0),1))
+    n[3]=round(devices.tempC(3),1)
+    n[4]=round(druck,2)
+
+    Zeile[0]=Klartext[1] + str(n[0])+'°C'
+    Zeile[1]=Klartext[2] + str(n[1])+'°C --- '+Klartext[0] + str(n[2])+'°C'
+    Zeile[2]=Klartext[3] + str(n[3])+'°C'
+    Zeile[3]='Druck: '+ str(n[4]) + 'barg'
+
+    file = open('FWM_Test.csv', 'a')  
+    writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+    writer.writerow([datetime.date.today(),datetime.datetime.now().strftime("%H:%M:%S"),
+        n[0],n[1],n[2],n[3],n[4]])
+
+    file.close()   # chm immer sofort wieder schließen
 
     threading.Timer(10, rest).start()
 
@@ -109,7 +131,7 @@ class MyServer(BaseHTTPRequestHandler):
            <html>
             <head>
                 <title>Warmwasser</title>
-                <meta http-equiv="refresh" content="3000">
+                <meta http-equiv="refresh" content="3">
                 <meta charset="UTF-8">
             </head>
            <body 
@@ -122,6 +144,7 @@ class MyServer(BaseHTTPRequestHandler):
                <input type="submit" name="submit" value="AUS" style="padding:20px;font-size:160%">
            </form>
            <p><br/>Restzeit: {}min {}s <br/><br/>Aktives Programm: {} <br/><br/>Pumpe: {}<br/><br/></p>
+           <p>{}</p>
            <p>{}</p>
            <p>{}</p>
            <p>{}</p>
@@ -141,7 +164,8 @@ class MyServer(BaseHTTPRequestHandler):
         self.wfile.write(html.format(restminuten,restsekunden,P_Aktiv,Pumpe_Status,
             Zeile[0],
             Zeile[1],
-            Zeile[2],Alarmtext).encode("utf-8"))
+            Zeile[2],Zeile[3],
+            Alarmtext).encode("utf-8"))
         #print(tempSensorWert)
 
 

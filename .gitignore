@@ -1,7 +1,13 @@
 .cache
 .vscode-server
+.vscode
 .config
 .gnupng
 .wget-hsts
 __pycache__
+Old
 *.out
+*.csv
+.bash*
+.profile
+.gitconfig
