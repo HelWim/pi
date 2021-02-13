@@ -48,6 +48,9 @@ def getTemperature():
 
 def rest():
     global Endzeit, Restzeit, Pumpe_Status , Zeile, Klartext, Alarmtext
+    global file
+    threading.Timer(15, rest).start() # damit es auch bei einem I/O Fehler weiter geht
+
     delay_endzeit=0
     delay=5 # Anzugsverzögerung des Alarms
     
@@ -71,17 +74,30 @@ def rest():
         Pumpe_Status='AUS'
 
     #Drucksensor
-    values=[1,2,3]
+    values=[1,2]
     z=0
-    while z<=2:
+    while z<=1:
         values[z] = adc.read_adc(1, gain=GAIN) # Read the ADC channel 1 value
         z=z+1
         mittel=sum(values)/len(values)
         druck=(mittel-3936)/(26608-3936)*4
 
 
+    n=[1,2,3,4,5]  # neue Werte für csv File
+    t_ww=round(devices.tempC(1),1)  #Warmwasser
+    t_ph=round(devices.tempC(2),1)  #P-heiss
+    t_pk=round(devices.tempC(0),1)  #P-kalt
+    t_raum=round(devices.tempC(3),1)  #Raumtemperatur
+    p=round(druck,2) # Druck Heizung
+    n[0]=t_ww
+    n[1]=t_ph
+    n[2]=t_pk
+    n[3]=t_raum
+    n[4]=p
+
+
     #P-Kalt > Warmwasser, nur das erste Event speichern  chm Unterschied ' und ""
-    if Pumpe_Status=='EIN' and devices.tempC(0) > devices.tempC(1) and Alarmtext=="ok":
+    if Pumpe_Status=='EIN' and t_pk > t_ww and Alarmtext=="ok":
         if delay_endzeit==0:
             delay_endzeit=time.time()+delay
             print('los',datetime.datetime.now())
@@ -90,26 +106,23 @@ def rest():
             print('delay',datetime.datetime.now())
             delay_endzeit=0
 
-    n=[1,2,3,4,5]  # neue Werte für csv File
-    n[0]=(round(devices.tempC(1),1))
-    n[1]=(round(devices.tempC(2),1))
-    n[2]=(round(devices.tempC(0),1))
-    n[3]=round(devices.tempC(3),1)
-    n[4]=round(druck,2)
+
 
     Zeile[0]=Klartext[1] + str(n[0])+'°C'
     Zeile[1]=Klartext[2] + str(n[1])+'°C --- '+Klartext[0] + str(n[2])+'°C'
     Zeile[2]=Klartext[3] + str(n[3])+'°C'
     Zeile[3]='Druck: '+ str(n[4]) + 'barg'
 
-    file = open('FWM_Test.csv', 'a')  
-    writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+    #file = open('FWM_Test.csv', 'a')  
+    #writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     writer.writerow([datetime.date.today(),datetime.datetime.now().strftime("%H:%M:%S"),
         n[0],n[1],n[2],n[3],n[4]])
+    print(datetime.date.today(),datetime.datetime.now().strftime("%H:%M:%S"),
+        n[0],n[1],n[2],n[3],n[4])
 
-    file.close()   # chm immer sofort wieder schließen
+    #file.close()   # chm immer sofort wieder schließen
 
-    threading.Timer(10, rest).start()
+
 
 
 
@@ -131,7 +144,7 @@ class MyServer(BaseHTTPRequestHandler):
            <html>
             <head>
                 <title>Warmwasser</title>
-                <meta http-equiv="refresh" content="3">
+                <meta http-equiv="refresh" content="5">
                 <meta charset="UTF-8">
             </head>
            <body 
@@ -208,7 +221,10 @@ class MyServer(BaseHTTPRequestHandler):
 
 
 def main():
+    global file, writer
     print("Hauptprogramm")
+    file = open('FWM_Test.csv', 'a')  
+    writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     rest()
 
 
@@ -224,3 +240,5 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         http_server.server_close()
         GPIO.cleanup()
+        file.close()
+
