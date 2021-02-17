@@ -12,6 +12,9 @@ import math
 from DS18B20classFile import DS18B20
 import csv
 
+import plotly.graph_objects as go
+
+
 adc = Adafruit_ADS1x15.ADS1115() # Create an ADS1115 ADC (16-bit) instance
 
 host_name = '192.168.178.40'  # IP Address of Raspberry Pi
@@ -143,9 +146,9 @@ class MyServer(BaseHTTPRequestHandler):
            <html>
             <head>
                 <title>Warmwasser</title>
-                <meta http-equiv="refresh" content="5000">
+                <meta http-equiv="refresh" content="5">
                 <meta charset="UTF-8">
-                <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+                <script src="first_figure.html"></script>
             </head>
            <body 
             style="width:960px; margin: 20px auto;font-size:200%">
@@ -165,24 +168,7 @@ class MyServer(BaseHTTPRequestHandler):
            <form action="/" method="POST">
                <input type="submit" name="submit" value="Quitieren" style="padding:20px;font-size:160%">
            </form>
-           <div id="diagramm"></div>
-           <script> 
-           var trace1 = {{
-                x: [1, 2, 3, 4],
-                y: [10, 15, 13, 17],
-                type: 'scatter'
-            }};
 
-            var trace2 = {{
-                x: [1, 2, 3, 4],
-                y: [16, 5, 11, 9],
-                type: 'scatter'
-            }};
-
-            var data = [trace1, trace2];
-
-            Plotly.newPlot('diagramm', data);
-           </script>
            </body>
            </html>
         '''
@@ -197,6 +183,8 @@ class MyServer(BaseHTTPRequestHandler):
             Zeile[2],Zeile[3],
             Alarmtext).encode("utf-8"))
         #print(tempSensorWert)
+        fig = go.Figure(data=go.Bar(y=[2, 3, 1]))
+        fig.write_html('first_figure.html', auto_open=True)
 
 
     def do_POST(self):

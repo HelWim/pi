@@ -1,17 +1,10 @@
 #!/usr/bin/env python3
 # coding=utf-8
 
+
 """
-import csv
-import plotly.express as px
-
-
-df = px.data.gapminder().query("country=='Canada'")
-fig = px.line(df, x="year", y="lifeExp", title='Life expectancy in Canada')
-fig.show()
-"""
-
-import plotly.plotly as py
+import plotly.graph_objects as go
+import plotly.offline as py
 from plotly.graph_objs import *
  
 trace0 = Scatter(
@@ -24,7 +17,10 @@ trace1 = Scatter(
 )
 data = Data([trace0, trace1])
  
-unique_url = py.plot(data, filename = 'basic-line')
+unique_url = py.plot(data, filename = 'basic-line.html')
 
-
+"""
+import plotly.graph_objects as go
+fig = go.Figure(data=go.Bar(y=[2, 3, 1]))
+fig.write_html('first_figure.html', auto_open=True)
 
