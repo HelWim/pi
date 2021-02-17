@@ -36,6 +36,11 @@ Endzeit=22
 Alarmtext="ok" #wenn Flow switch hängt
 Delay_endzeit=0
 
+X_werte=[]
+Y1_werte=[]
+Y2_werte=[]
+Y3_werte=[]
+
 def setupGPIO():
     GPIO.setmode(GPIO.BCM)
     GPIO.setwarnings(False)
@@ -50,6 +55,7 @@ def getTemperature():
 def rest():
     global Endzeit, Restzeit, Pumpe_Status , Zeile, Klartext, Alarmtext
     global file, Delay_endzeit
+    global X_werte, Y1_werte, Y2_werte
     threading.Timer(15, rest).start() # damit es auch bei einem I/O Fehler weiter geht
     
     Restzeit=math.trunc(Endzeit-time.time())  #chm '%6.2f' %  Kommastellen abschneiden, Zeitformat
@@ -78,7 +84,7 @@ def rest():
         values[z] = adc.read_adc(1, gain=GAIN) # Read the ADC channel 1 value
         z=z+1
         mittel=sum(values)/len(values)
-        druck=(mittel-3936)/(26608-3936)*4
+        druck=(mittel-3936)/(28508-3936)*4 #alt:26608
 
 
     n=[1,2,3,4,5]  # neue Werte für csv File
@@ -112,15 +118,23 @@ def rest():
     Zeile[2]=Klartext[3] + str(n[3])+'°C'
     Zeile[3]='Druck: '+ str(n[4]) + 'barg'
 
-    #file = open('FWM_Test.csv', 'a')  
-    #writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+
     writer.writerow([datetime.date.today(),datetime.datetime.now().strftime("%H:%M:%S"),
         n[0],n[1],n[2],n[3],n[4]])
     print(datetime.date.today(),datetime.datetime.now().strftime("%H:%M:%S"),
         n[0],n[1],n[2],n[3],n[4])
 
-    #file.close()   # chm immer sofort wieder schließen
+    #die letzten 20 Werte für Trend speichern %m/%d/%Y
+    X_werte.append(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    Y1_werte.append(t_ww)
+    Y2_werte.append(t_pk)
+    Y3_werte.append(t_ph)
 
+    if len(X_werte)>10:
+        x=X_werte.pop(0)
+        x=Y1_werte.pop(0)
+        x=Y2_werte.pop(0)
+    print(X_werte,Y1_werte)
 
 
 
@@ -143,7 +157,7 @@ class MyServer(BaseHTTPRequestHandler):
            <html>
             <head>
                 <title>Warmwasser</title>
-                <meta http-equiv="refresh" content="5000">
+                <meta http-equiv="refresh" content="5">
                 <meta charset="UTF-8">
                 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
             </head>
@@ -167,25 +181,50 @@ class MyServer(BaseHTTPRequestHandler):
            </form>
            <div id="diagramm"></div>
            <script> 
-           var trace1 = {{
-                x: [1, 2, 3, 4],
-                y: [10, 15, 13, 17],
-                type: 'scatter'
-            }};
+            var trace1 = {{
+                type: "scatter",
+                mode: "lines",
+                name: 't_WW',
+                x:{},
+                y:{},
+                line: {{color: '#17BECF'}}
+            }}
 
             var trace2 = {{
-                x: [1, 2, 3, 4],
-                y: [16, 5, 11, 9],
-                type: 'scatter'
+                type: "scatter",
+                mode: "lines",
+                name: 't_pk',
+                x:{},
+                y:{},
+                line: {{color: '#7F7F7F'}}
+            }}
+
+            var trace3 = {{
+                type: "scatter",
+                mode: "lines",
+                name: 't_ph',
+                x:{},
+                y:{},
+                line: {{color: '#00ff00'}}
+            }}
+
+            var data = [trace1,trace2,trace3];
+
+            var layout = {{
+                title: 'Warmwasser',
+                yaxis: {{
+                    autorange: false,
+                    range: [10, 60],
+                    type: 'linear'
+                }}
             }};
-
-            var data = [trace1, trace2];
-
-            Plotly.newPlot('diagramm', data);
+            Plotly.newPlot('diagramm', data, layout);
            </script>
            </body>
            </html>
         '''
+        #x_werte=['2013-10-04 22:23:00', '2013-10-04 22:24:00', '2013-10-04 22:26:00']
+        #y1_werte=[1, 3, 6]
         #temp = getTemperature()
         self.do_HEAD()
         #self.wfile.write(html.format(temp[5:],Endzeit).encode("utf-8"))
@@ -195,7 +234,9 @@ class MyServer(BaseHTTPRequestHandler):
             Zeile[0],
             Zeile[1],
             Zeile[2],Zeile[3],
-            Alarmtext).encode("utf-8"))
+            Alarmtext,
+            X_werte,Y1_werte,X_werte,Y2_werte,X_werte,Y3_werte
+            ).encode("utf-8"))
         #print(tempSensorWert)
 
 
@@ -238,9 +279,12 @@ class MyServer(BaseHTTPRequestHandler):
 
 
 def main():
-    global file, writer
+    global file, writer, F_Name
     print("Hauptprogramm")
-    file = open('FWM_Test.csv', 'a')  
+    F_Name=str(datetime.date.today())+".csv"
+    print(F_Name)
+    #file = open('FWM_Test.csv', 'a')  
+    file = open(F_Name, 'a') 
     writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     rest()
 
