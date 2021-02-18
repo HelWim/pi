@@ -35,6 +35,7 @@ Restzeit=21
 Endzeit=22
 Alarmtext="ok" #wenn Flow switch hängt
 Delay_endzeit=0
+F_Name="x"
 
 X_werte=[]
 Y1_werte=[]
@@ -56,6 +57,7 @@ def rest():
     global Endzeit, Restzeit, Pumpe_Status , Zeile, Klartext, Alarmtext
     global file, Delay_endzeit
     global X_werte, Y1_werte, Y2_werte
+    global F_Name, writer
     threading.Timer(15, rest).start() # damit es auch bei einem I/O Fehler weiter geht
     
     Restzeit=math.trunc(Endzeit-time.time())  #chm '%6.2f' %  Kommastellen abschneiden, Zeitformat
@@ -84,7 +86,7 @@ def rest():
         values[z] = adc.read_adc(1, gain=GAIN) # Read the ADC channel 1 value
         z=z+1
         mittel=sum(values)/len(values)
-        druck=(mittel-3936)/(28508-3936)*4 #alt:26608
+        druck=(mittel-3936)/(24834-3936)*4 #alt:26608
 
 
     n=[1,2,3,4,5]  # neue Werte für csv File
@@ -101,40 +103,44 @@ def rest():
 
     #P-Kalt > Warmwasser, nur das erste Event speichern  chm Unterschied ' und ""
 
-    delay=5 # Anzugsverzögerung des Alarms
+    delay=15 # Anzugsverzögerung des Alarms
     if Pumpe_Status=='EIN' and t_pk > t_ww and Alarmtext=="ok":
         if Delay_endzeit==0:
             Delay_endzeit=time.time()+delay
-            print('los',datetime.datetime.now())
+            #print('los',datetime.datetime.now())
         if time.time()>Delay_endzeit:      
             Alarmtext="ALARM: "+ datetime.datetime.now().strftime("%d-%m-%Y, %H:%M:%S")
-            print('delay',datetime.datetime.now())
+            #print('delay',datetime.datetime.now())
             Delay_endzeit=0
-
-
 
     Zeile[0]=Klartext[1] + str(n[0])+'°C'
     Zeile[1]=Klartext[2] + str(n[1])+'°C --- '+Klartext[0] + str(n[2])+'°C'
     Zeile[2]=Klartext[3] + str(n[3])+'°C'
     Zeile[3]='Druck: '+ str(n[4]) + 'barg'
 
+    if F_Name != str(datetime.date.today())+".csv": #neuer Tag
+        file.close()
+        F_name = str(datetime.date.today())+".csv"
+        file = open(F_Name, 'a') 
+        writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
 
     writer.writerow([datetime.date.today(),datetime.datetime.now().strftime("%H:%M:%S"),
         n[0],n[1],n[2],n[3],n[4]])
-    print(datetime.date.today(),datetime.datetime.now().strftime("%H:%M:%S"),
-        n[0],n[1],n[2],n[3],n[4])
+    #print(datetime.date.today(),datetime.datetime.now().strftime("%H:%M:%S"),
+     #   n[0],n[1],n[2],n[3],n[4])
 
-    #die letzten 20 Werte für Trend speichern %m/%d/%Y
+    #die letzten Werte für Trend speichern 
     X_werte.append(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     Y1_werte.append(t_ww)
     Y2_werte.append(t_pk)
     Y3_werte.append(t_ph)
 
-    if len(X_werte)>10:
+    if len(X_werte)>20:
         x=X_werte.pop(0)
         x=Y1_werte.pop(0)
         x=Y2_werte.pop(0)
-    print(X_werte,Y1_werte)
+        x=Y3_werte.pop(0)
+    #print(X_werte,Y1_werte)
 
 
 
