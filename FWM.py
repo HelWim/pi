@@ -36,7 +36,7 @@ Endzeit=22
 Alarmtext="ok" #wenn Flow switch hängt
 Delay_endzeit=0
 F_Name="x"
-
+a=[1,2,3,4,5]  # alte Werte für csv File
 X_werte=[]
 Y1_werte=[]
 Y2_werte=[]
@@ -56,7 +56,7 @@ def getTemperature():
 def rest():
     global Endzeit, Restzeit, Pumpe_Status , Zeile, Klartext, Alarmtext
     global file, Delay_endzeit
-    global X_werte, Y1_werte, Y2_werte
+    global X_werte, Y1_werte, Y2_werte, a
     global F_Name, writer
     threading.Timer(15, rest).start() # damit es auch bei einem I/O Fehler weiter geht
     
@@ -90,6 +90,7 @@ def rest():
 
 
     n=[1,2,3,4,5]  # neue Werte für csv File
+    #a=[1,2,3,4,5]  # alte Werte für csv File
     t_ww=round(devices.tempC(1),1)  #Warmwasser
     t_ph=round(devices.tempC(2),1)  #P-heiss
     t_pk=round(devices.tempC(0),1)  #P-kalt
@@ -120,14 +121,33 @@ def rest():
 
     if F_Name != str(datetime.date.today())+".csv": #neuer Tag
         file.close()
-        F_name = str(datetime.date.today())+".csv"
+        F_Name = str(datetime.date.today())+".csv"
         file = open(F_Name, 'a') 
         writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+    #print(n)
+    #print(a)
+    gleich=1
+
+    if abs(n[0]-a[0])>0.2 :
+        gleich=0
+    if abs(n[1]-a[1])>0.2 :
+        gleich=0
+    if abs(n[2]-a[2])>0.2 :
+        gleich=0
+    if abs(n[3]-a[3])>0.2 :
+        gleich=0
+    if abs(n[4]-a[4])>0.05 :
+        gleich=0
+
+   
+    #print (gleich)
+
 
     writer.writerow([datetime.date.today(),datetime.datetime.now().strftime("%H:%M:%S"),
         n[0],n[1],n[2],n[3],n[4]])
     #print(datetime.date.today(),datetime.datetime.now().strftime("%H:%M:%S"),
      #   n[0],n[1],n[2],n[3],n[4])
+    a=list(n)
 
     #die letzten Werte für Trend speichern 
     X_werte.append(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
@@ -135,7 +155,7 @@ def rest():
     Y2_werte.append(t_pk)
     Y3_werte.append(t_ph)
 
-    if len(X_werte)>20:
+    if len(X_werte)>30:
         x=X_werte.pop(0)
         x=Y1_werte.pop(0)
         x=Y2_werte.pop(0)
