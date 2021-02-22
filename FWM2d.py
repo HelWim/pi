@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # coding=utf-8
 # Umstellen auf AZ-delviery Temperaturauslesen
+# test 2 Diagramme
 
 import RPi.GPIO as GPIO
 import os, time
@@ -39,10 +40,15 @@ Alarmtext="ok" #wenn Flow switch hängt
 Delay_endzeit=0
 F_Name="x"
 a=[1,2,3,4,5,6,7]  # alte Werte für csv File
-X_werte=[]
+X_werte=[] # X-Achse 1. Diagramm
 Y1_werte=[]
 Y2_werte=[]
 Y3_werte=[]
+XA_werte=[] # X-Achse 2. Diagramm
+
+P_Endzeit=22 # Endzeit für Druckdiagramm
+
+rf=5 #refresh Zeit html
 
 def setupGPIO():
     GPIO.setmode(GPIO.BCM)
@@ -59,7 +65,7 @@ def rest():
     global Endzeit, Restzeit, Pumpe_Status , Zeile, Klartext, Alarmtext
     global file, Delay_endzeit
     global X_werte, Y1_werte, Y2_werte, a
-    global F_Name, writer
+    global F_Name, writer, P_Endzeit
     threading.Timer(15, rest).start() # damit es auch bei einem I/O Fehler weiter geht
     
     Restzeit=math.trunc(Endzeit-time.time())  #chm '%6.2f' %  Kommastellen abschneiden, Zeitformat
@@ -161,7 +167,7 @@ def rest():
             #   n[0],n[1],n[2],n[3],n[4])
         a=list(n)
 
-    #die letzten Werte für Trend speichern 
+    #die letzten Werte für Trend speichern, bei jedem Durchlauf
     X_werte.append(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     Y1_werte.append(t_ww)
     Y2_werte.append(t_pk)
@@ -174,6 +180,9 @@ def rest():
         x=Y3_werte.pop(0)
     #print(X_werte,Y1_werte)
 
+    spanne=600 # Anstand für die Diagrammpunkte für Diagramm 2
+    if time.time()>P_Endzeit:
+        P_Endzeit=P_Endzeit + spanne # neue Endzeit
 
 
 
@@ -191,11 +200,12 @@ class MyServer(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        global rf
         html = '''
            <html>
             <head>
                 <title>Warmwasser</title>
-                <meta http-equiv="refresh" content="5">
+                <meta http-equiv="refresh" content={}>
                 <meta charset="UTF-8">
                 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
             </head>
@@ -208,7 +218,7 @@ class MyServer(BaseHTTPRequestHandler):
                <input type="submit" name="submit" value="30min_EIN" style="padding:20px;font-size:160%">
                <input type="submit" name="submit" value="AUS" style="padding:20px;font-size:160%">
            </form>
-           <p><br/>Restzeit: {}min {}s <br/><br/>Aktives Programm: {} <br/><br/>Pumpe: {}<br/><br/></p>
+           <p><br/>Restzeit: {}min {}s <br/><br/>Aktives Programm: {} <br/>Pumpe: {}<br/><br/></p>
            <p>{}</p>
            <p>{}</p>
            <p>{}</p>
@@ -216,7 +226,9 @@ class MyServer(BaseHTTPRequestHandler):
            <p><br/>Flow Switch: {}</p>
            <form action="/" method="POST">
                <input type="submit" name="submit" value="Quitieren" style="padding:20px;font-size:160%">
+               <input type="submit" name="submit" value="Refresh" style="padding:20px;font-size:160%">
            </form>
+           <p>Refresh: {}s</p>
            <div id="diagramm"></div>
            <script> 
             var trace1 = {{
@@ -258,6 +270,49 @@ class MyServer(BaseHTTPRequestHandler):
             }};
             Plotly.newPlot('diagramm', data, layout);
            </script>
+
+           <div id="diagramm2"></div>
+           <script> 
+            var trace1 = {{
+                type: "scatter",
+                mode: "lines",
+                name: 't_WW',
+                x:{},
+                y:{},
+                line: {{color: '#17BECF'}}
+            }}
+
+            var trace2 = {{
+                type: "scatter",
+                mode: "lines",
+                name: 't_pk',
+                x:{},
+                y:{},
+                line: {{color: '#7F7F7F'}}
+            }}
+
+            var trace3 = {{
+                type: "scatter",
+                mode: "lines",
+                name: 't_ph',
+                x:{},
+                y:{},
+                line: {{color: '#00ff00'}}
+            }}
+
+            var data = [trace1,trace2,trace3];
+
+            var layout = {{
+                title: 'Warmwasser',
+                yaxis: {{
+                    autorange: false,
+                    range: [10, 60],
+                    type: 'linear'
+                }}
+            }};
+            Plotly.newPlot('diagramm2', data, layout);
+           </script>
+
            </body>
            </html>
         '''
@@ -268,18 +323,20 @@ class MyServer(BaseHTTPRequestHandler):
         #self.wfile.write(html.format(temp[5:],Endzeit).encode("utf-8"))
         restminuten=math.trunc(Restzeit/60)
         restsekunden=Restzeit-60*restminuten
-        self.wfile.write(html.format(restminuten,restsekunden,P_Aktiv,Pumpe_Status,
+        self.wfile.write(html.format(rf,restminuten,restsekunden,P_Aktiv,Pumpe_Status,
             Zeile[0],
             Zeile[1],
             Zeile[2],Zeile[3],
             Alarmtext,
+            rf,
+            X_werte,Y1_werte,X_werte,Y2_werte,X_werte,Y3_werte,
             X_werte,Y1_werte,X_werte,Y2_werte,X_werte,Y3_werte
             ).encode("utf-8"))
         #print(tempSensorWert)
 
 
     def do_POST(self):
-        global Endzeit, Restzeit, P_Aktiv, Alarmtext
+        global Endzeit, Restzeit, P_Aktiv, Alarmtext, rf
         content_length = int(self.headers['Content-Length'])
         post_data = self.rfile.read(content_length).decode("utf-8")
         post_data = post_data.split("=")[1]
@@ -310,6 +367,12 @@ class MyServer(BaseHTTPRequestHandler):
 
         if post_data == 'Quitieren':
             Alarmtext="ok"
+
+        if post_data == 'Refresh':
+            if rf==5:
+                rf=2000
+            else:
+                rf=5
 
 
         #print("LED is {}".format(post_data))
