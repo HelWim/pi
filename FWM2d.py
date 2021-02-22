@@ -45,6 +45,7 @@ Y1_werte=[]
 Y2_werte=[]
 Y3_werte=[]
 XA_werte=[] # X-Achse 2. Diagramm
+YA1_werte=[] 
 
 P_Endzeit=22 # Endzeit für Druckdiagramm
 
@@ -64,7 +65,8 @@ def getTemperature():  #CPU Temperatur
 def rest():
     global Endzeit, Restzeit, Pumpe_Status , Zeile, Klartext, Alarmtext
     global file, Delay_endzeit
-    global X_werte, Y1_werte, Y2_werte, a
+    global X_werte, Y1_werte, Y2_werte, a  #Hier fehlt Y3:werte und es geht trotzdem
+    global XA_werte, YA1_werte
     global F_Name, writer, P_Endzeit
     threading.Timer(15, rest).start() # damit es auch bei einem I/O Fehler weiter geht
     
@@ -182,7 +184,15 @@ def rest():
 
     spanne=600 # Anstand für die Diagrammpunkte für Diagramm 2
     if time.time()>P_Endzeit:
-        P_Endzeit=P_Endzeit + spanne # neue Endzeit
+        P_Endzeit=time.time() + spanne # neue Endzeit
+        XA_werte.append(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        YA1_werte.append(p)
+
+    if len(XA_werte)>30:
+        x=XA_werte.pop(0)
+        x=YA1_werte.pop(0)
+
+    print(XA_werte,YA1_werte)
 
 
 
@@ -276,37 +286,20 @@ class MyServer(BaseHTTPRequestHandler):
             var trace1 = {{
                 type: "scatter",
                 mode: "lines",
-                name: 't_WW',
+                name: 'Druck',
                 x:{},
                 y:{},
                 line: {{color: '#17BECF'}}
             }}
 
-            var trace2 = {{
-                type: "scatter",
-                mode: "lines",
-                name: 't_pk',
-                x:{},
-                y:{},
-                line: {{color: '#7F7F7F'}}
-            }}
 
-            var trace3 = {{
-                type: "scatter",
-                mode: "lines",
-                name: 't_ph',
-                x:{},
-                y:{},
-                line: {{color: '#00ff00'}}
-            }}
-
-            var data = [trace1,trace2,trace3];
+            var data = [trace1];
 
             var layout = {{
-                title: 'Warmwasser',
+                title: 'Druck',
                 yaxis: {{
                     autorange: false,
-                    range: [10, 60],
+                    range: [0, 3],
                     type: 'linear'
                 }}
             }};
@@ -330,7 +323,7 @@ class MyServer(BaseHTTPRequestHandler):
             Alarmtext,
             rf,
             X_werte,Y1_werte,X_werte,Y2_werte,X_werte,Y3_werte,
-            X_werte,Y1_werte,X_werte,Y2_werte,X_werte,Y3_werte
+            XA_werte,YA1_werte
             ).encode("utf-8"))
         #print(tempSensorWert)
 
