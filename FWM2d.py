@@ -182,7 +182,7 @@ def rest():
         x=Y3_werte.pop(0)
     #print(X_werte,Y1_werte)
 
-    spanne=600 # Anstand für die Diagrammpunkte für Diagramm 2
+    spanne=1200 # Anstand für die Diagrammpunkte für Diagramm 2
     if time.time()>P_Endzeit:
         P_Endzeit=time.time() + spanne # neue Endzeit
         XA_werte.append(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
@@ -192,7 +192,7 @@ def rest():
         x=XA_werte.pop(0)
         x=YA1_werte.pop(0)
 
-    print(XA_werte,YA1_werte)
+    #print(XA_werte,YA1_werte)
 
 
 
