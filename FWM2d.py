@@ -46,6 +46,7 @@ Y2_werte=[]
 Y3_werte=[]
 XA_werte=[] # X-Achse 2. Diagramm
 YA1_werte=[] 
+YA2_werte=[] 
 
 P_Endzeit=22 # Endzeit für Druckdiagramm
 
@@ -66,7 +67,7 @@ def rest():
     global Endzeit, Restzeit, Pumpe_Status , Zeile, Klartext, Alarmtext
     global file, Delay_endzeit
     global X_werte, Y1_werte, Y2_werte, a  #Hier fehlt Y3:werte und es geht trotzdem
-    global XA_werte, YA1_werte
+    global XA_werte, YA1_werte,YA2_werte
     global F_Name, writer, P_Endzeit
     threading.Timer(15, rest).start() # damit es auch bei einem I/O Fehler weiter geht
     
@@ -175,7 +176,7 @@ def rest():
     Y2_werte.append(t_pk)
     Y3_werte.append(t_ph)
 
-    if len(X_werte)>30:
+    if len(X_werte)>50:
         x=X_werte.pop(0)
         x=Y1_werte.pop(0)
         x=Y2_werte.pop(0)
@@ -186,13 +187,15 @@ def rest():
     if time.time()>P_Endzeit:
         P_Endzeit=time.time() + spanne # neue Endzeit
         XA_werte.append(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        YA1_werte.append(p)
+        YA1_werte.append(p)   #Druck
+        YA2_werte.append(ps)   #Pumpenstatus
 
-    if len(XA_werte)>30:
+    if len(XA_werte)>50:
         x=XA_werte.pop(0)
         x=YA1_werte.pop(0)
+        x=YA2_werte.pop(0)
 
-    #print(XA_werte,YA1_werte)
+    #print(XA_werte,YA1_werte,YA2_werte)
 
 
 
@@ -292,8 +295,16 @@ class MyServer(BaseHTTPRequestHandler):
                 line: {{color: '#17BECF'}}
             }}
 
+            var trace2 = {{
+                type: "scatter",
+                mode: "lines",
+                name: 'P_Ein',
+                x:{},
+                y:{},
+                line: {{color: '#7F7F7F'}}
+            }}
 
-            var data = [trace1];
+            var data = [trace1,trace2];
 
             var layout = {{
                 title: 'Druck',
@@ -309,8 +320,7 @@ class MyServer(BaseHTTPRequestHandler):
            </body>
            </html>
         '''
-        #x_werte=['2013-10-04 22:23:00', '2013-10-04 22:24:00', '2013-10-04 22:26:00']
-        #y1_werte=[1, 3, 6]
+
         #temp = getTemperature()
         self.do_HEAD()
         #self.wfile.write(html.format(temp[5:],Endzeit).encode("utf-8"))
@@ -323,7 +333,7 @@ class MyServer(BaseHTTPRequestHandler):
             Alarmtext,
             rf,
             X_werte,Y1_werte,X_werte,Y2_werte,X_werte,Y3_werte,
-            XA_werte,YA1_werte
+            XA_werte,YA1_werte,XA_werte,YA2_werte
             ).encode("utf-8"))
         #print(tempSensorWert)
 
@@ -387,7 +397,6 @@ def main():
 
 if __name__ == '__main__':
     http_server = HTTPServer((host_name, host_port), MyServer)
-    #print("Server Starts - %s:%s" % (host_name, host_port))
 
     try:
         main()
