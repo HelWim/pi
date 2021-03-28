@@ -15,7 +15,8 @@ try: # Main program loop
 
 		while i < count:
 			container = devices.tempC(i)
-			print (devices.tempC(0),devices.tempC(1))
+			print(container)
+			#print (devices.tempC(0),devices.tempC(1))
 			#print (container)
 			"""
 			print('{}. Temp: {:.3f}{}C, {:.3f}{}F of the device {}'
