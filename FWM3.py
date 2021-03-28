@@ -43,6 +43,10 @@ t_ww_dn=0 #Devicenummer vom Warmwasser-Temperatursensor
 t_ph_dn=0 #Devicenummer vom Puffer-heiss-Temperatursensor
 t_pk_dn=0 #Devicenummer vom Puffer-kalt-Temperatursensor
 t_raum_dn=0 #Devicenummer vom Raumtemp-Temperatursensor
+t_p1_dn=0 #Devicenummer vom Puffertemperatursensor erster von unten
+t_p2_dn=0 #Devicenummer vom Puffertemperatursensor zweiter von unten
+t_p3_dn=0 #Devicenummer vom Puffertemperatursensor dritter von unten
+t_p4_dn=0 #Devicenummer vom Puffertemperatursensor vierter von unten
 
 F_Name="x"
 a=[1,2,3,4,5,6,7]  # alte Werte für csv File
@@ -391,7 +395,8 @@ class MyServer(BaseHTTPRequestHandler):
 
 def main():
     global file, writer, F_Name
-    global t_ww_dn, t_ph_dn, t_pk_dn,t_raum_dn
+    global t_ww_dn, t_ph_dn, t_pk_dn, t_raum_dn
+    global t_p1_dn, t_p2_dn, t_p3_dn, t_p4_dn=0 
     print("Hauptprogramm")
     F_Name=str(datetime.date.today())+".csv"
     print(F_Name)
