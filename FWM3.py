@@ -48,6 +48,12 @@ t_p2_dn=0 #Devicenummer vom Puffertemperatursensor zweiter von unten
 t_p3_dn=0 #Devicenummer vom Puffertemperatursensor dritter von unten
 t_p4_dn=0 #Devicenummer vom Puffertemperatursensor vierter von unten
 
+
+t_p1=20 # Puffertemperatur erste von unten
+t_p2=20 # Puffertemperatur zweite von unten
+t_p3=20 # Puffertemperatur dritte von unten
+t_p4=20 # Puffertemperatur vierte von unten
+
 F_Name="x"
 a=[1,2,3,4,5,6,7]  # alte Werte für csv File
 X_werte=[] # X-Achse 1. Diagramm
@@ -57,8 +63,15 @@ Y3_werte=[]
 XA_werte=[] # X-Achse 2. Diagramm
 YA1_werte=[] 
 YA2_werte=[] 
+XB_werte=[] # X-Achse 3. Diagramm
+YB1_werte=[] 
+YB2_werte=[] 
+YB3_werte=[] 
+YB4_werte=[] 
+
 
 P_Endzeit=22 # Endzeit für Druckdiagramm
+Puffer_Endzeit=22 # Endzeit für Auslesen der Puffertemperaturen
 
 rf=5 #refresh Zeit html
 
@@ -78,7 +91,9 @@ def rest():
     global file, Delay_endzeit
     global X_werte, Y1_werte, Y2_werte, a  #Hier fehlt Y3:werte und es geht trotzdem
     global XA_werte, YA1_werte,YA2_werte
-    global F_Name, writer, P_Endzeit
+    global F_Name, writer, P_Endzeit, Puffer_Endzeit
+    global t_p1,t_p2,t_p3,t_p4
+
     threading.Timer(15, rest).start() # damit es auch bei einem I/O Fehler weiter geht
     
     Restzeit=math.trunc(Endzeit-time.time())  #chm '%6.2f' %  Kommastellen abschneiden, Zeitformat
@@ -112,7 +127,7 @@ def rest():
         druck=(mittel-3936)/(24834-3936)*4 #alt:26608
 
 
-    n=[1,2,3,4,5,6,7]  # neue Werte für csv File
+    n=[1,2,3,4,5,6,7,8,9,10,11]  # neue Werte für csv File
     #a=[1,2,3,4,5]  # alte Werte für csv File
     t_ww=round(devices.tempC(t_ww_dn),1)  #Warmwasser
     t_ph=round(devices.tempC(t_ph_dn),1)  #P-heiss
@@ -121,8 +136,7 @@ def rest():
     p=round(druck,2) # Druck Heizung
 
     #P-Kalt > Warmwasser, nur das erste Event speichern  chm Unterschied ' und ""
-
-    delay=35 # Anzugsverzögerung des Alarms
+    delay=65 # Anzugsverzögerung des Alarms in Sekunden
     if Pumpe_Status=='EIN' and t_pk > t_ww and Alarmtext=="ok":
         if Delay_endzeit==0:
             Delay_endzeit=time.time()+delay
@@ -131,9 +145,17 @@ def rest():
             Alarmtext="ALARM: "+ datetime.datetime.now().strftime("%d-%m-%Y, %H:%M:%S")
             #print('delay',datetime.datetime.now())
             Delay_endzeit=0
-
     astatus=0 if Alarmtext == "ok" else 1  #Alarmstatus
 
+    spanne_puffer=60 # in wlechen Zeitabständen die Puffertemperaturen gelesen werden in Sekunden
+    if time.time()>Puffer_Endzeit:
+        Puffer_Endzeit=time.time() + spanne_puffer # neue Endzeit  
+        t_p1=round(devices.tempC(t_p1_dn),1) # Puffertemperatur erste von unten
+        t_p2=round(devices.tempC(t_p2_dn),1) # Puffertemperatur zweite von unten
+        t_p3=round(devices.tempC(t_p3_dn),1) # Puffertemperatur dritte von unten
+        t_p4=round(devices.tempC(t_p4_dn),1) # Puffertemperatur vierte von unten
+
+    # in dieser Reihenfolge werden die Daten ins csv File geschrieben
     n[0]=t_ww
     n[1]=t_ph
     n[2]=t_pk
@@ -141,6 +163,10 @@ def rest():
     n[4]=p #Druck in Heizung
     n[5]=ps  # Pumpenstatus
     n[6]=astatus #Alarmstatus
+    n[7]=t_p1 #Puffertemperatur erster von unten
+    n[8]=t_p2 #Puffertemperatur zweite von unten
+    n[9]=t_p3 #Puffertemperatur dritte von unten
+    n[10]=t_p4 #Puffertemperatur dritte von unten
         
     Zeile[0]=Klartext[1] + str(n[0])+'°C'
     Zeile[1]=Klartext[2] + str(n[1])+'°C --- '+Klartext[0] + str(n[2])+'°C'
@@ -175,7 +201,7 @@ def rest():
 
     if gleich==0: #File schreiben wenn die Daten sich geändert haben
         writer.writerow([datetime.date.today(),datetime.datetime.now().strftime("%H:%M:%S"),   
-            n[0],n[1],n[2],n[3],n[4],n[5],n[6]])
+            n[0],n[1],n[2],n[3],n[4],n[5],n[6],n[7],n[8],n[9],n[10]])
         #print(datetime.date.today(),datetime.datetime.now().strftime("%H:%M:%S"),
             #   n[0],n[1],n[2],n[3],n[4])
         a=list(n)
@@ -193,7 +219,7 @@ def rest():
         x=Y3_werte.pop(0)
     #print(X_werte,Y1_werte)
 
-    spanne=1200 # Anstand für die Diagrammpunkte für Diagramm 2
+    spanne=1200 # Anstand für die Diagrammpunkte für Diagramm 2 in Sekunden
     if time.time()>P_Endzeit:
         P_Endzeit=time.time() + spanne # neue Endzeit
         XA_werte.append(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
@@ -396,7 +422,7 @@ class MyServer(BaseHTTPRequestHandler):
 def main():
     global file, writer, F_Name
     global t_ww_dn, t_ph_dn, t_pk_dn, t_raum_dn
-    global t_p1_dn, t_p2_dn, t_p3_dn, t_p4_dn=0 
+    global t_p1_dn, t_p2_dn, t_p3_dn, t_p4_dn
     print("Hauptprogramm")
     F_Name=str(datetime.date.today())+".csv"
     print(F_Name)
@@ -417,7 +443,16 @@ def main():
             t_ph_dn=i
         if names[i]=='28-012033389e18':
             t_raum_dn=i
-        
+        if names[i]=='28-01203395e5cc':
+            t_p4_dn=i #Devicenummer vom Puffertemperatursensor vierter von unten
+        if names[i]=='28-0120333abd5d':
+            t_p3_dn=i #Devicenummer vom Puffertemperatursensor dritter von unten            
+        if names[i]=='28-0120333dff2b':
+            t_p2_dn=i #Devicenummer vom Puffertemperatursensor zweiter von unten 
+        if names[i]=='28-0120333b1a7b':
+            t_p1_dn=i #Devicenummer vom Puffertemperatursensor erster von unten 
+
+
         i=i+1
     
     print(t_ww_dn, t_ph_dn, t_pk_dn,t_raum_dn)

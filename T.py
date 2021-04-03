@@ -27,6 +27,19 @@ try: # Main program loop
 				Klartext='P-heiss'
 			if names[i]=='28-012033389e18':
 				Klartext='Raumtemperatur'
+				
+			if names[i]=='28-0120333b1a7b':
+				Klartext='Puffer 1 von unten'
+
+			if names[i]=='28-0120333abd5d':
+				Klartext='Puffer 3 von unten'
+
+			if names[i]=='28-0120333dff2b':
+				Klartext='Puffer 2 von unten'
+
+			if names[i]=='28-01203395e5cc':
+				Klartext='Puffer 4 von unten'
+
 
 			print(i," ",container,names[i],Klartext)
 			#print (devices.tempC(0),devices.tempC(1))
@@ -38,7 +51,7 @@ try: # Main program loop
 			"""
 			Klartext='xx'
 			i = i + 1
-	time.sleep(1)
+		time.sleep(5)
 
 # Scavenging work after the end of the program
 except KeyboardInterrupt:
