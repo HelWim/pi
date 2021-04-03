@@ -91,6 +91,7 @@ def rest():
     global file, Delay_endzeit
     global X_werte, Y1_werte, Y2_werte, a  #Hier fehlt Y3:werte und es geht trotzdem
     global XA_werte, YA1_werte,YA2_werte
+    global XB_werte, YB1_werte,YB2_werte,YB3_werte,YB4_werte
     global F_Name, writer, P_Endzeit, Puffer_Endzeit
     global t_p1,t_p2,t_p3,t_p4
 
@@ -154,6 +155,14 @@ def rest():
         t_p2=round(devices.tempC(t_p2_dn),1) # Puffertemperatur zweite von unten
         t_p3=round(devices.tempC(t_p3_dn),1) # Puffertemperatur dritte von unten
         t_p4=round(devices.tempC(t_p4_dn),1) # Puffertemperatur vierte von unten
+
+        #Speichern der Werte für den Trend
+        #Bei jedem Durchlauf - noch zu ändern
+        XB_werte.append(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        YB1_werte.append(t_p1)
+        YB2_werte.append(t_p2)
+        YB3_werte.append(t_p3)
+        YB4_werte.append(t_p4)
 
     # in dieser Reihenfolge werden die Daten ins csv File geschrieben
     n[0]=t_ww
@@ -230,6 +239,13 @@ def rest():
         x=XA_werte.pop(0)
         x=YA1_werte.pop(0)
         x=YA2_werte.pop(0)
+
+    if len(XB_werte)>50:
+        x=XB_werte.pop(0)
+        x=YB1_werte.pop(0)
+        x=YB2_werte.pop(0)
+        x=YB3_werte.pop(0)
+        x=YB4_werte.pop(0)
 
     #print(XA_werte,YA1_werte,YA2_werte)
 
