@@ -148,7 +148,7 @@ def rest():
             Delay_endzeit=0
     astatus=0 if Alarmtext == "ok" else 1  #Alarmstatus
 
-    spanne_puffer=60 # in wlechen Zeitabständen die Puffertemperaturen gelesen werden in Sekunden
+    spanne_puffer=120 # in welchen Zeitabständen die Puffertemperaturen gelesen werden, in Sekunden
     if time.time()>Puffer_Endzeit:
         Puffer_Endzeit=time.time() + spanne_puffer # neue Endzeit  
         t_p1=round(devices.tempC(t_p1_dn),1) # Puffertemperatur erste von unten
@@ -294,6 +294,7 @@ class MyServer(BaseHTTPRequestHandler):
                <input type="submit" name="submit" value="Refresh" style="padding:20px;font-size:160%">
            </form>
            <p>Refresh: {}s</p>
+
            <div id="diagramm"></div>
            <script> 
             var trace1 = {{
@@ -370,6 +371,58 @@ class MyServer(BaseHTTPRequestHandler):
             Plotly.newPlot('diagramm2', data, layout);
            </script>
 
+           <div id="diagramm3"></div>
+           <script> 
+            var trace1 = {{
+                type: "scatter",
+                mode: "lines",
+                name: 't_p1',
+                x:{},
+                y:{},
+                line: {{color: '#17BECF'}}
+            }}
+
+            var trace2 = {{
+                type: "scatter",
+                mode: "lines",
+                name: 't_p2',
+                x:{},
+                y:{},
+                line: {{color: '#7F7F7F'}}
+            }}
+
+            var trace3 = {{
+                type: "scatter",
+                mode: "lines",
+                name: 't_p3',
+                x:{},
+                y:{},
+                line: {{color: '#00ff00'}}
+            }}
+
+            var trace4 = {{
+                type: "scatter",
+                mode: "lines",
+                name: 't_p4',
+                x:{},
+                y:{},
+                line: {{color: '#00ff00'}}
+            }}
+
+
+            var data = [trace1,trace2,trace3,trace4];
+
+            var layout = {{
+                title: 'Puffer',
+                yaxis: {{
+                    autorange: false,
+                    range: [10, 60],
+                    type: 'linear'
+                }}
+            }};
+            Plotly.newPlot('diagramm3', data, layout);
+           </script>
+
            </body>
            </html>
         '''
@@ -386,7 +439,8 @@ class MyServer(BaseHTTPRequestHandler):
             Alarmtext,
             rf,
             X_werte,Y1_werte,X_werte,Y2_werte,X_werte,Y3_werte,
-            XA_werte,YA1_werte,XA_werte,YA2_werte
+            XA_werte,YA1_werte,XA_werte,YA2_werte,
+            XB_werte,YB1_werte,XB_werte,YB2_werte,XB_werte,YB3_werte,XB_werte,YB4_werte
             ).encode("utf-8"))
         #print(tempSensorWert)
 
