@@ -47,7 +47,7 @@ t_p1_dn=0 #Devicenummer vom Puffertemperatursensor erster von unten
 t_p2_dn=0 #Devicenummer vom Puffertemperatursensor zweiter von unten
 t_p3_dn=0 #Devicenummer vom Puffertemperatursensor dritter von unten
 t_p4_dn=0 #Devicenummer vom Puffertemperatursensor vierter von unten
-
+i_pt=0 # Anch wievielen Lesezyklen die Puffertemperaturen am Handytrend angezeigt werden
 
 t_p1=20 # Puffertemperatur erste von unten
 t_p2=20 # Puffertemperatur zweite von unten
@@ -60,9 +60,12 @@ X_werte=[] # X-Achse 1. Diagramm
 Y1_werte=[]
 Y2_werte=[]
 Y3_werte=[]
+Y4_werte=[]
+Y5_werte=[]
 XA_werte=[] # X-Achse 2. Diagramm
 YA1_werte=[] 
 YA2_werte=[] 
+YA3_werte=[] 
 XB_werte=[] # X-Achse 3. Diagramm
 YB1_werte=[] 
 YB2_werte=[] 
@@ -90,10 +93,10 @@ def rest():
     global Endzeit, Restzeit, Pumpe_Status , Zeile, Klartext, Alarmtext
     global file, Delay_endzeit
     global X_werte, Y1_werte, Y2_werte, a  #Hier fehlt Y3:werte und es geht trotzdem
-    global XA_werte, YA1_werte,YA2_werte
+    global XA_werte, YA1_werte,YA2_werte,YA3_werte
     global XB_werte, YB1_werte,YB2_werte,YB3_werte,YB4_werte
     global F_Name, writer, P_Endzeit, Puffer_Endzeit
-    global t_p1,t_p2,t_p3,t_p4
+    global t_p1,t_p2,t_p3,t_p4, i_pt
 
     threading.Timer(15, rest).start() # damit es auch bei einem I/O Fehler weiter geht
     
@@ -113,12 +116,12 @@ def rest():
     grenze=50 # Grenzwert des Rauschens bei dem die Pumpe EIN ist
     if max(strom)-min(strom)>grenze:
         Pumpe_Status='EIN'
-        ps=1
+        ps=30  # damit er im Temperaturdiagramm gut sichtbar ist
     else:
         Pumpe_Status='AUS'
         ps=0
 
-    #Drucksensor
+    #Drucksensor Heizung
     values=[1,2]
     z=0
     while z<=1:
@@ -127,6 +130,9 @@ def rest():
         mittel=sum(values)/len(values)
         druck=(mittel-3936)/(24834-3936)*4 #alt:26608
 
+    #Drucksensor Wasserwerk
+    druck_ww=(adc.read_adc(2, gain=GAIN)-3936)/(24834-3936)*4 #alt:26608
+    druck_ww=round(druck_ww,2)  
 
     n=[1,2,3,4,5,6,7,8,9,10,11]  # neue Werte für csv File
     #a=[1,2,3,4,5]  # alte Werte für csv File
@@ -158,11 +164,14 @@ def rest():
 
         #Speichern der Werte für den Trend
         #Bei jedem Durchlauf - noch zu ändern
-        XB_werte.append(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        YB1_werte.append(t_p1)
-        YB2_werte.append(t_p2)
-        YB3_werte.append(t_p3)
-        YB4_werte.append(t_p4)
+        i_pt=i_pt+1
+        if i_pt == 10: # jeden 10. Zyklus wird ein Punkt am Handydiagramm gesetzt
+            i_pt=0
+            XB_werte.append(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            YB1_werte.append(t_p1)
+            YB2_werte.append(t_p2)
+            YB3_werte.append(t_p3)
+            YB4_werte.append(t_p4)
 
     # in dieser Reihenfolge werden die Daten ins csv File geschrieben
     n[0]=t_ww
@@ -220,12 +229,16 @@ def rest():
     Y1_werte.append(t_ww)
     Y2_werte.append(t_pk)
     Y3_werte.append(t_ph)
+    Y4_werte.append(ps)
+    Y5_werte.append(druck_ww*10) #zehfacher Wert damit Skala passt
 
     if len(X_werte)>50:
         x=X_werte.pop(0)
         x=Y1_werte.pop(0)
         x=Y2_werte.pop(0)
         x=Y3_werte.pop(0)
+        x=Y4_werte.pop(0)
+        x=Y5_werte.pop(0)
     #print(X_werte,Y1_werte)
 
     spanne=1200 # Anstand für die Diagrammpunkte für Diagramm 2 in Sekunden
@@ -233,12 +246,14 @@ def rest():
         P_Endzeit=time.time() + spanne # neue Endzeit
         XA_werte.append(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         YA1_werte.append(p)   #Druck
-        YA2_werte.append(ps)   #Pumpenstatus
+        YA2_werte.append(ps)   #Pumpenstatus, momentan nicht verwendet
+        YA3_werte.append(druck_ww*0.5) # die Hälfte wegen Skala
 
-    if len(XA_werte)>50:
+    if len(XA_werte)>100:
         x=XA_werte.pop(0)
         x=YA1_werte.pop(0)
-        x=YA2_werte.pop(0)
+        x=YA2_werte.pop(0)  #Pumpenstatus, momentan nicht verwendet
+        x=YA3_werte.pop(0) # Druck Wasserwerk
 
     if len(XB_werte)>50:
         x=XB_werte.pop(0)
@@ -303,7 +318,7 @@ class MyServer(BaseHTTPRequestHandler):
                 name: 't_WW',
                 x:{},
                 y:{},
-                line: {{color: '#17BECF'}}
+                line: {{color: '#ffa500'}}
             }}
 
             var trace2 = {{
@@ -312,7 +327,7 @@ class MyServer(BaseHTTPRequestHandler):
                 name: 't_pk',
                 x:{},
                 y:{},
-                line: {{color: '#7F7F7F'}}
+                line: {{color: '#0000ff'}}
             }}
 
             var trace3 = {{
@@ -321,10 +336,27 @@ class MyServer(BaseHTTPRequestHandler):
                 name: 't_ph',
                 x:{},
                 y:{},
-                line: {{color: '#00ff00'}}
+                line: {{color: '#ff0000'}}
             }}
 
-            var data = [trace1,trace2,trace3];
+            var trace4 = {{
+                type: "scatter",
+                mode: "lines",
+                name: 'Pumpe',
+                x:{},
+                y:{},
+                line: {{color: '#808080'}}
+            }}
+            var trace5 = {{
+                type: "scatter",
+                mode: "lines",
+                name: 'Druck_WW',
+                x:{},
+                y:{},
+                line: {{color: '#808080'}}
+            }}
+
+            var data = [trace3,trace1,trace2,trace4,trace5];
 
             var layout = {{
                 title: 'Warmwasser',
@@ -342,7 +374,7 @@ class MyServer(BaseHTTPRequestHandler):
             var trace1 = {{
                 type: "scatter",
                 mode: "lines",
-                name: 'Druck',
+                name: 'Druck Heizung',
                 x:{},
                 y:{},
                 line: {{color: '#17BECF'}}
@@ -350,21 +382,19 @@ class MyServer(BaseHTTPRequestHandler):
 
             var trace2 = {{
                 type: "scatter",
-                line: {{shape: 'hv'}},
                 mode: "lines",
-                name: 'P_Ein',
+                name: 'Druck WW',
                 x:{},
                 y:{},
-                line: {{color: '#7F7F7F'}}
+                line: {{color: '#808080'}}
             }}
-
             var data = [trace1,trace2];
 
             var layout = {{
                 title: 'Druck',
                 yaxis: {{
                     autorange: false,
-                    range: [0, 3],
+                    range: [0.5, 2.5],
                     type: 'linear'
                 }}
             }};
@@ -379,7 +409,7 @@ class MyServer(BaseHTTPRequestHandler):
                 name: 't_p1',
                 x:{},
                 y:{},
-                line: {{color: '#17BECF'}}
+                line: {{color: '#0000ff'}}
             }}
 
             var trace2 = {{
@@ -388,7 +418,7 @@ class MyServer(BaseHTTPRequestHandler):
                 name: 't_p2',
                 x:{},
                 y:{},
-                line: {{color: '#7F7F7F'}}
+                line: {{color: '#1e90ff'}}
             }}
 
             var trace3 = {{
@@ -397,7 +427,7 @@ class MyServer(BaseHTTPRequestHandler):
                 name: 't_p3',
                 x:{},
                 y:{},
-                line: {{color: '#00ff00'}}
+                line: {{color: '#ffa500'}}
             }}
 
             var trace4 = {{
@@ -406,7 +436,7 @@ class MyServer(BaseHTTPRequestHandler):
                 name: 't_p4',
                 x:{},
                 y:{},
-                line: {{color: '#00ff00'}}
+                line: {{color: '#ff0000'}}
             }}
 
 
@@ -438,11 +468,12 @@ class MyServer(BaseHTTPRequestHandler):
             Zeile[2],Zeile[3],
             Alarmtext,
             rf,
-            X_werte,Y1_werte,X_werte,Y2_werte,X_werte,Y3_werte,
-            XA_werte,YA1_werte,XA_werte,YA2_werte,
+            X_werte,Y1_werte,X_werte,Y2_werte,X_werte,Y3_werte,X_werte,Y4_werte,X_werte,Y5_werte,
+            XA_werte,YA1_werte,XA_werte,YA3_werte,
             XB_werte,YB1_werte,XB_werte,YB2_werte,XB_werte,YB3_werte,XB_werte,YB4_werte
             ).encode("utf-8"))
         #print(tempSensorWert)
+        #print(XA_werte,YA1_werte,XA_werte,YA2_werte)
 
 
     def do_POST(self):
