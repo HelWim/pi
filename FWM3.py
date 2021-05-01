@@ -76,7 +76,7 @@ YB4_werte=[]
 P_Endzeit=22 # Endzeit für Druckdiagramm
 Puffer_Endzeit=22 # Endzeit für Auslesen der Puffertemperaturen
 
-rf=5 #refresh Zeit html
+rf=6 #refresh Zeit html
 
 def setupGPIO():
     GPIO.setmode(GPIO.BCM)
@@ -98,7 +98,7 @@ def rest():
     global F_Name, writer, P_Endzeit, Puffer_Endzeit
     global t_p1,t_p2,t_p3,t_p4, i_pt
 
-    threading.Timer(15, rest).start() # damit es auch bei einem I/O Fehler weiter geht
+    threading.Timer(20, rest).start() # damit es auch bei einem I/O Fehler weiter geht
     
     Restzeit=math.trunc(Endzeit-time.time())  #chm '%6.2f' %  Kommastellen abschneiden, Zeitformat
     if Restzeit<0:
@@ -440,7 +440,7 @@ class MyServer(BaseHTTPRequestHandler):
             }}
 
 
-            var data = [trace1,trace2,trace3,trace4];
+            var data = [trace4,trace3,trace2,trace1];
 
             var layout = {{
                 title: 'Puffer',
@@ -510,10 +510,10 @@ class MyServer(BaseHTTPRequestHandler):
             Alarmtext="ok"
 
         if post_data == 'Refresh':
-            if rf==5:
+            if rf==6:
                 rf=2000
             else:
-                rf=5
+                rf=6
 
 
         #print("LED is {}".format(post_data))
