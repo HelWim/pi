@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # coding=utf-8
 # Umstellen auf AZ-delviery Temperaturauslesen
-# 2 Diagramme
+# 3 Diagramme
 # neue Steckerplatine für Temperatursensoren
 
 import RPi.GPIO as GPIO
@@ -129,6 +129,7 @@ def rest():
         z=z+1
         mittel=sum(values)/len(values)
         druck=(mittel-3936)/(24834-3936)*4 #alt:26608
+        time.sleep(1)
 
     #Drucksensor Wasserwerk
     druck_ww=(adc.read_adc(2, gain=GAIN)-3936)/(24834-3936)*4 #alt:26608
@@ -143,7 +144,7 @@ def rest():
     p=round(druck,2) # Druck Heizung
 
     #P-Kalt > Warmwasser, nur das erste Event speichern  chm Unterschied ' und ""
-    delay=65 # Anzugsverzögerung des Alarms in Sekunden
+    delay=120 # Anzugsverzögerung des Alarms in Sekunden
     if Pumpe_Status=='EIN' and t_pk > t_ww and Alarmtext=="ok":
         if Delay_endzeit==0:
             Delay_endzeit=time.time()+delay
@@ -281,6 +282,7 @@ class MyServer(BaseHTTPRequestHandler):
 
     def do_GET(self):
         global rf
+        print ("do get start")
         html = '''
            <html>
             <head>
@@ -474,6 +476,7 @@ class MyServer(BaseHTTPRequestHandler):
             ).encode("utf-8"))
         #print(tempSensorWert)
         #print(XA_werte,YA1_werte,XA_werte,YA2_werte)
+        print("Do Get end")
 
 
     def do_POST(self):
@@ -519,6 +522,12 @@ class MyServer(BaseHTTPRequestHandler):
         #print("LED is {}".format(post_data))
         self._redirect('/')  # Redirect back to the root url
 
+def server():
+    #Schließt und öffnet den Server regelmäßig
+    threading.Timer(90, rest).start()
+    http_server.server_close()
+    http_server.serve_forever()
+
 
 def main():
     global file, writer, F_Name
@@ -552,14 +561,14 @@ def main():
             t_p2_dn=i #Devicenummer vom Puffertemperatursensor zweiter von unten 
         if names[i]=='28-0120333b1a7b':
             t_p1_dn=i #Devicenummer vom Puffertemperatursensor erster von unten 
-
-
+        
         i=i+1
     
     print(t_ww_dn, t_ph_dn, t_pk_dn,t_raum_dn)
 
 
     rest()
+    server()
 
 
 # # # # # Main # # # # #
@@ -569,9 +578,14 @@ if __name__ == '__main__':
 
     try:
         main()
-        http_server.serve_forever()
+        #http_server.serve_forever()
     except KeyboardInterrupt:
         http_server.server_close()
         GPIO.cleanup()
         file.close()
+    except err:
+        print(err, datetime.datetime.now().strftime("%d-%m-%Y, %H:%M:%S"))
+        #http_server.server_close()
+        #http_server.serve_forever()
+
 
