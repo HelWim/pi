@@ -3,6 +3,18 @@
 # Umstellen auf AZ-delviery Temperaturauslesen
 # 3 Diagramme
 # neue Steckerplatine für Temperatursensoren
+# 16.10.21 Pfad ergänzt
+'''
+sudo nano /etc/rc.local
+
+
+sudo dtoverlay w1-gpio gpiopin=4 pullup=0
+sudo dtoverlay w1-gpio gpiopin=17 pullup=0
+sudo dtoverlay w1-gpio gpiopin=27 pullup=0
+ls -l /sys/bus/w1/devices/
+
+nohup python3 FWM3.py &
+'''
 
 import RPi.GPIO as GPIO
 import os, time
@@ -12,19 +24,35 @@ import time, datetime
 import Adafruit_ADS1x15
 import math
 from DS18B20classFile import DS18B20
-import csv
+import csv, statistics
+
 
 adc = Adafruit_ADS1x15.ADS1115() # Create an ADS1115 ADC (16-bit) instance
 
 host_name = '192.168.178.40'  # IP Address of Raspberry Pi
 host_port = 8000
+
 Pumpe_Status="AUS"
 P_Aktiv="xx"  # momentan aktive Pumpenschaltung
 
 # Ansteuerung Relais
 GPIO.setmode(GPIO.BCM) # We will be using the BCM GPIO numbering
+GPIO.setwarnings(False) # wieso? kommt vom Ultraschallsensor
 GPIO_CONTROL = 5 # Select a control GPIO, 21.3.21 vorher 17
 GPIO.setup(GPIO_CONTROL, GPIO.OUT) # Set CONTROL to OUTPUT mode
+
+TRIG = 23  # BCM 4 funktioniert nicht gut, da er von der One-wire Schnittstelle auch benutzt werden kann
+ECHO = 24
+GPIO.setup(TRIG,GPIO.OUT)
+GPIO.setup(ECHO,GPIO.IN)
+GPIO.output(TRIG, False)
+
+# für Level Zysterne
+L1_werte=[]  #laufende Messungen
+L1_60_werte=[] # Messungen der letzen 10min, rollierend
+L1_alt=0
+L1=0
+distance1=0
 
 
 #degree_sign = u'\xb0' # degree sign
@@ -33,7 +61,7 @@ count = devices.device_count()
 names = devices.device_names()
 
 
-Klartext='P-kalt ','Warmwasser ','P-heiss ','Raumtemp ' # Bezeichnung der Tempsensoren
+Klartext='P-kalt ','Warmwasser ','P-heiss ','T Raum ' # Bezeichnung der Tempsensoren
 Zeile=['aa','bb','cc','dd']
 Restzeit=21
 Endzeit=22
@@ -55,6 +83,7 @@ t_p3=20 # Puffertemperatur dritte von unten
 t_p4=20 # Puffertemperatur vierte von unten
 
 F_Name="x"
+Pfad="/home/pi/"
 a=[1,2,3,4,5,6,7]  # alte Werte für csv File
 X_werte=[] # X-Achse 1. Diagramm
 Y1_werte=[]
@@ -66,6 +95,7 @@ XA_werte=[] # X-Achse 2. Diagramm
 YA1_werte=[] 
 YA2_werte=[] 
 YA3_werte=[] 
+YA4_werte=[] 
 XB_werte=[] # X-Achse 3. Diagramm
 YB1_werte=[] 
 YB2_werte=[] 
@@ -93,20 +123,23 @@ def rest():
     global Endzeit, Restzeit, Pumpe_Status , Zeile, Klartext, Alarmtext
     global file, Delay_endzeit
     global X_werte, Y1_werte, Y2_werte, a  #Hier fehlt Y3:werte und es geht trotzdem
-    global XA_werte, YA1_werte,YA2_werte,YA3_werte
+    global XA_werte, YA1_werte,YA2_werte,YA3_werte,YA4_werte
     global XB_werte, YB1_werte,YB2_werte,YB3_werte,YB4_werte
-    global F_Name, writer, P_Endzeit, Puffer_Endzeit
+    global Pfad, F_Name, writer, P_Endzeit, Puffer_Endzeit
     global t_p1,t_p2,t_p3,t_p4, i_pt
+    global L1
 
     threading.Timer(20, rest).start() # damit es auch bei einem I/O Fehler weiter geht
+    # nach 20s wird dieses Unterprogamm wieder aufgerufen
     
+    # Ausschalten der Pumpe wenn Zeit abgelaufen ist
     Restzeit=math.trunc(Endzeit-time.time())  #chm '%6.2f' %  Kommastellen abschneiden, Zeitformat
     if Restzeit<0:
         Restzeit=0
     if Restzeit==0:
         GPIO.output(GPIO_CONTROL, GPIO.HIGH) #Pumpe deaktivieren
     
-    #Stromsensor
+    #Stromsensor um festzustellen ob Pumpe läuft
     strom=[1,2,3]
     z=0
     GAIN=1
@@ -135,7 +168,11 @@ def rest():
     druck_ww=(adc.read_adc(2, gain=GAIN)-3936)/(24834-3936)*4 #alt:26608
     druck_ww=round(druck_ww,2)  
 
-    n=[1,2,3,4,5,6,7,8,9,10,11]  # neue Werte für csv File
+    # hier Level Zysterne abrufen
+    ultra1()
+    #print (L1)
+
+    n=[1,2,3,4,5,6,7,8,9,10,11,12]  # neue Werte für csv File
     #a=[1,2,3,4,5]  # alte Werte für csv File
     t_ww=round(devices.tempC(t_ww_dn),1)  #Warmwasser
     t_ph=round(devices.tempC(t_ph_dn),1)  #P-heiss
@@ -186,15 +223,16 @@ def rest():
     n[8]=t_p2 #Puffertemperatur zweite von unten
     n[9]=t_p3 #Puffertemperatur dritte von unten
     n[10]=t_p4 #Puffertemperatur dritte von unten
+    n[11]=L1 #Puffertemperatur dritte von unten
         
     Zeile[0]=Klartext[1] + str(n[0])+'°C'
     Zeile[1]=Klartext[2] + str(n[1])+'°C --- '+Klartext[0] + str(n[2])+'°C'
-    Zeile[2]=Klartext[3] + str(n[3])+'°C'
+    Zeile[2]=Klartext[3] + str(n[3])+'°C --- Zysterne ' + str(n[11]) +'m'  #Raumtemp, Zysterne
     Zeile[3]='Druck: '+ str(n[4]) + 'barg'
 
-    if F_Name != str(datetime.date.today())+".csv": #neuer Tag
+    if F_Name != Pfad+str(datetime.date.today())+".csv": #neuer Tag
         file.close()
-        F_Name = str(datetime.date.today())+".csv"
+        F_Name = Pfad+str(datetime.date.today())+".csv"
         file = open(F_Name, 'a') 
         writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     #print(n)
@@ -215,17 +253,18 @@ def rest():
         gleich=0
     if n[6] != a[6] :
         gleich=0
+    # die anderen Werte werden mitgeschrieben
 
     #print (gleich)
 
     if gleich==0: #File schreiben wenn die Daten sich geändert haben
         writer.writerow([datetime.date.today(),datetime.datetime.now().strftime("%H:%M:%S"),   
-            n[0],n[1],n[2],n[3],n[4],n[5],n[6],n[7],n[8],n[9],n[10]])
+            n[0],n[1],n[2],n[3],n[4],n[5],n[6],n[7],n[8],n[9],n[10],n[11]])
         #print(datetime.date.today(),datetime.datetime.now().strftime("%H:%M:%S"),
             #   n[0],n[1],n[2],n[3],n[4])
         a=list(n)
 
-    #die letzten Werte für Trend speichern, bei jedem Durchlauf
+    #die letzten Werte für Handy-Trend 1 speichern, bei jedem Durchlauf
     X_werte.append(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     Y1_werte.append(t_ww)
     Y2_werte.append(t_pk)
@@ -242,19 +281,21 @@ def rest():
         x=Y5_werte.pop(0)
     #print(X_werte,Y1_werte)
 
-    spanne=1200 # Anstand für die Diagrammpunkte für Diagramm 2 in Sekunden
+    spanne=1200 # Anstand für die Diagrammpunkte für Handy-Diagramm 2 in Sekunden
     if time.time()>P_Endzeit:
         P_Endzeit=time.time() + spanne # neue Endzeit
         XA_werte.append(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         YA1_werte.append(p)   #Druck
         YA2_werte.append(ps)   #Pumpenstatus, momentan nicht verwendet
         YA3_werte.append(druck_ww*0.5) # die Hälfte wegen Skala
+        YA4_werte.append(L1) # Ultra Zysterne
 
     if len(XA_werte)>100:
         x=XA_werte.pop(0)
         x=YA1_werte.pop(0)
         x=YA2_werte.pop(0)  #Pumpenstatus, momentan nicht verwendet
         x=YA3_werte.pop(0) # Druck Wasserwerk
+        x=YA4_werte.pop(0) # Ultra Zysterne
 
     if len(XB_werte)>50:
         x=XB_werte.pop(0)
@@ -390,10 +431,18 @@ class MyServer(BaseHTTPRequestHandler):
                 y:{},
                 line: {{color: '#808080'}}
             }}
-            var data = [trace1,trace2];
+            var trace3 = {{
+                type: "scatter",
+                mode: "lines",
+                name: 'Zysterne',
+                x:{},
+                y:{},
+                line: {{color: '#ffa500'}}
+            }}            
+            var data = [trace1,trace2,trace3];
 
             var layout = {{
-                title: 'Druck',
+                title: 'Druck, Level',
                 yaxis: {{
                     autorange: false,
                     range: [0.5, 2.5],
@@ -471,7 +520,7 @@ class MyServer(BaseHTTPRequestHandler):
             Alarmtext,
             rf,
             X_werte,Y1_werte,X_werte,Y2_werte,X_werte,Y3_werte,X_werte,Y4_werte,X_werte,Y5_werte,
-            XA_werte,YA1_werte,XA_werte,YA3_werte,
+            XA_werte,YA1_werte,XA_werte,YA3_werte,XA_werte,YA4_werte,
             XB_werte,YB1_werte,XB_werte,YB2_werte,XB_werte,YB3_werte,XB_werte,YB4_werte
             ).encode("utf-8"))
         #print(tempSensorWert)
@@ -522,19 +571,59 @@ class MyServer(BaseHTTPRequestHandler):
         #print("LED is {}".format(post_data))
         self._redirect('/')  # Redirect back to the root url
 
-def server():
+def serverR():
     #Schließt und öffnet den Server regelmäßig
-    threading.Timer(90, rest).start()
+    # das funktioniert so nicht
+    threading.Timer(90, serverR).start()
     http_server.server_close()
+    http_server = HTTPServer((host_name, host_port), MyServer)
     http_server.serve_forever()
 
+def ultra1():
+    global L1_werte, L1_alt, L1, L1_60_werte, distance1
+    # grosser Ultraschallsensor
+    #print("ultra1")
+    pulse_start=0
+    pulse_end=0
+    GPIO.output(TRIG, True)
+    #time.sleep(0.00001)
+    time.sleep(0.00001)
+    GPIO.output(TRIG, False)
+    #print(datetime.datetime.now().strftime("%H:%M:%S"))
+    while GPIO.input(ECHO) == 0:
+        pulse_start = time.time()
+    mt=time.time()+1 # maximal 1s auf den Impuls warten
+    while GPIO.input(ECHO) == 1 and time.time()<mt:
+        pulse_end = time.time()
+    pulse_duration = pulse_end - pulse_start
+    distance = pulse_duration * 17150 /100 # auf m umrechnen
+    distance = round(distance, 2)
+    #print("distance",distance)
+    
+    if distance>300:
+        distance=300
+    distance1=("%.2f") % distance  # was soll hier disance1?
+    L1_werte.append(distance)
+    #L1=round(sum(L1_werte)/len(L1_werte),1)  
+    L1=round(statistics.median(L1_werte),2)  
+    #print("L1 median",L1_werte,statistics.median(L1_werte))
+
+    if len(L1_werte)>14:  # bei 2s Pause sind da 1/2h min Rolling average
+        x=L1_werte.pop(0)
+    L1_60_werte.append(L1)
+    if len(L1_60_werte)>1800:  # auf 1h begrenzen
+        x=L1_60_werte.pop(0)    
+
+    #print(L1_werte)
+    #print (L1)
+    #print(datetime.datetime.now().strftime("%H:%M:%S"),"Ultra1: Distance is {} cm".format(L1), "aktuell=",distance1)
 
 def main():
-    global file, writer, F_Name
+    global file, writer, F_Name, Pfad
     global t_ww_dn, t_ph_dn, t_pk_dn, t_raum_dn
     global t_p1_dn, t_p2_dn, t_p3_dn, t_p4_dn
     print("Hauptprogramm")
-    F_Name=str(datetime.date.today())+".csv"
+    F_Name=Pfad+str(datetime.date.today())+".csv"
     print(F_Name)
     #file = open('FWM_Test.csv', 'a')  
     file = open(F_Name, 'a') 
@@ -568,7 +657,7 @@ def main():
 
 
     rest()
-    server()
+    #serverR()  # funktioniert so leider nicht
 
 
 # # # # # Main # # # # #
@@ -578,14 +667,34 @@ if __name__ == '__main__':
 
     try:
         main()
-        #http_server.serve_forever()
+        http_server.serve_forever()
+        print("try nochmal")
+        http_server.serve_forever()
+
     except KeyboardInterrupt:
         http_server.server_close()
         GPIO.cleanup()
         file.close()
+
+
+    '''
     except err:
         print(err, datetime.datetime.now().strftime("%d-%m-%Y, %H:%M:%S"))
         #http_server.server_close()
         #http_server.serve_forever()
+    '''
 
+    '''
+    except OSError:
+        print("OS Error", datetime.datetime.now().strftime("%d-%m-%Y, %H:%M:%S"))
+    else:
+        print("Allgemeiner Fehler", datetime.datetime.now().strftime("%d-%m-%Y, %H:%M:%S"))
+    '''
+    
+    '''
+    nohup python3 FWM3.py &
+    sudo dtoverlay w1-gpio gpiopin=4 pullup=0
+    sudo dtoverlay w1-gpio gpiopin=17 pullup=0
+    sudo dtoverlay w1-gpio gpiopin=27 pullup=0
+    '''
 
